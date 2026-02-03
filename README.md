@@ -1,2 +1,3 @@
 # coding-agent-helpers
-Skills and tools for our coding agents
+
+This repository contains a collection of skills and tools for our coding agents.
