@@ -17,7 +17,7 @@ Find the documentation: [SST Docs](https://sst.dev/docs)
 
 ## Structure
 
-If not mentioned, you should find the SST relevant files in `./infra` or `./infrastructure`.
+If not mentioned, you should find the SST relevant files in `./infra` or `./infrastructure`. Don't look into any other directory.
 
 ## Best practices
 
@@ -42,3 +42,4 @@ If not mentioned, you should find the SST relevant files in `./infra` or `./infr
 
 - `new <provider>.<provider>.<Resource>('some-name')`
   - Consider that a change in name leads to a replacement of resources.
+- **ALWAYS** ignore the directories `node_modules`, `.sst`
