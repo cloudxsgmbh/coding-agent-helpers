@@ -16,7 +16,9 @@ Installation and usage: https://github.com/badlogic/pi-mono/tree/main/packages/c
 Clone this repository and then create symbolic links to the skills for the Pi coding agent:
 
 ```bash
+# Allow the script to be executed
 chmod +x skills/link-skills-pi
+# Run the script to link skills to ~/.pi/agent/skills/
 ./skills/link-skills-pi
 ```
 
