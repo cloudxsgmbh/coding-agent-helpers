@@ -1,0 +1,19 @@
+#!/bin/bash
+
+SOURCE_DIR="$(dirname "$(realpath "$0")")"
+DEST_DIR="$HOME/.pi/agent/skills/"
+
+# Create destination directory if it doesn't exist
+mkdir -p "$DEST_DIR"
+
+# Loop through each item in the source directory
+for dir in "$SOURCE_DIR"/*/; do
+    # Check if it is a directory
+    if [ -d "$dir" ]; then
+        # Get the directory name
+        dirname=$(basename "$dir")
+        
+        # Create the symbolic link in the destination directory
+        ln -s "$dir" "$DEST_DIR/$dirname"
+    fi
+done

@@ -13,6 +13,13 @@ This repository contains a collection of skills and tools for our coding agents.
 
 Installation and usage: https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent
 
+Clone this repository and then create symbolic links to the skills for the Pi coding agent:
+
+```bash
+chmod +x skills/link-skills-pi
+./skills/link-skills-pi
+```
+
 Invoke a skill by typing `/skill:name` in the chat.
 
 #### Directories
