@@ -41,7 +41,9 @@ chmod +x pi-extensions/link-extensions-pi
 
 | Extension Name | Description                                                                                  |
 | -------------- | -------------------------------------------------------------------------------------------- |
+| answer         | Extract Q&A pairs from assistant responses. Call `/answer`                                   |
 | todos          | Manage and track your to-do items. [How to use](https://www.youtube.com/watch?v=ZcKbzxziA5k) |
+| whimsical      | Prints out random messages while working.                                                    |
 
 #### Directories
 
