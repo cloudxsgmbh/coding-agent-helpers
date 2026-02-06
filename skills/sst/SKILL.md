@@ -45,11 +45,10 @@ $transform(sst.aws.Function, (args) => {
 
 ### sst.aws.Function
 
-- To comply with best practices for monitoring and auditing, logging retention must be set. Either on the function itself or globally via a transform function.
+- Logging retention **MUST** be set either globally in `sst.config.ts` using a transform function for `sst.aws.Function` or directly on the function level.
   - allow values >=`1 day` if it is used as a Lambda@Edge function.
   - allow values >=`6 months` for standard Lambda functions.
-- Don't allow retention not to be set.
-- Don't allow Logging format not to be set. It **MUST** be set to `json`.
+- Logging format **MUST** be set to `json`.
 
 Example:
 
