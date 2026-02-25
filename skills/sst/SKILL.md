@@ -30,7 +30,8 @@ $transform(sst.aws.Function, (args) => {
 
 ## Best practices
 
-- **CloudTrail**: It is recommended that an SST project should have a CloudTrail trail enabled to log all management data. Recognize a trail by the resource type `aws.cloudtrail.Trail`. If no trail is found, suggest adding one considering the [CloudTrail reference](references/CLOUDTRAIL.md)
+- **CloudTrail**: In productive environments, it is recommended that an SST project should have a CloudTrail trail enabled to log all management data. Recognize a trail by the resource type `aws.cloudtrail.Trail`. If no trail is found, suggest adding one considering the [CloudTrail reference](references/CLOUDTRAIL.md). Consider stages as productive if they include `prd`, `prod`, or `production` in their name.
+
 
 ## Specific resource best practices
 
