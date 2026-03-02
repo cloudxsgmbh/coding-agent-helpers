@@ -10,3 +10,4 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Keep files <~500 LOC; split/refactor as needed.
 - New deps: quick health check (recent releases/commits, adoption).
 - Style: telegraph. Drop filler/grammar. Min tokens (global AGENTS + replies).
+- **NEVER** git commit without explicit instruction.
