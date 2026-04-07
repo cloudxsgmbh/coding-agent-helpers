@@ -1,4 +1,3 @@
-// https://github.com/mitsuhiko/agent-stuff/blob/main/pi-extensions/answer.ts
 /**
  * Q&A extraction hook - extracts questions from assistant responses
  *
@@ -20,6 +19,7 @@ import {
 import type {
   ExtensionAPI,
   ExtensionContext,
+  ModelRegistry,
 } from "@mariozechner/pi-coding-agent";
 import { BorderedLoader } from "@mariozechner/pi-coding-agent";
 import {
@@ -84,15 +84,12 @@ const HAIKU_MODEL_ID = "claude-haiku-4-5";
  */
 async function selectExtractionModel(
   currentModel: Model<Api>,
-  modelRegistry: {
-    find: (provider: string, modelId: string) => Model<Api> | undefined;
-    getApiKey: (model: Model<Api>) => Promise<string | undefined>;
-  },
+  modelRegistry: ModelRegistry,
 ): Promise<Model<Api>> {
   const codexModel = modelRegistry.find("openai-codex", CODEX_MODEL_ID);
   if (codexModel) {
-    const apiKey = await modelRegistry.getApiKey(codexModel);
-    if (apiKey) {
+    const auth = await modelRegistry.getApiKeyAndHeaders(codexModel);
+    if (auth.ok) {
       return codexModel;
     }
   }
@@ -102,8 +99,8 @@ async function selectExtractionModel(
     return currentModel;
   }
 
-  const apiKey = await modelRegistry.getApiKey(haikuModel);
-  if (!apiKey) {
+  const auth = await modelRegistry.getApiKeyAndHeaders(haikuModel);
+  if (!auth.ok) {
     return currentModel;
   }
 
@@ -491,7 +488,11 @@ export default function (pi: ExtensionAPI) {
         loader.onAbort = () => done(null);
 
         const doExtract = async () => {
-          const apiKey = await ctx.modelRegistry.getApiKey(extractionModel);
+          const auth =
+            await ctx.modelRegistry.getApiKeyAndHeaders(extractionModel);
+          if (!auth.ok) {
+            throw new Error(auth.error);
+          }
           const userMessage: UserMessage = {
             role: "user",
             content: [{ type: "text", text: lastAssistantText! }],
@@ -501,7 +502,11 @@ export default function (pi: ExtensionAPI) {
           const response = await complete(
             extractionModel,
             { systemPrompt: SYSTEM_PROMPT, messages: [userMessage] },
-            { apiKey, signal: loader.signal },
+            {
+              apiKey: auth.apiKey,
+              headers: auth.headers,
+              signal: loader.signal,
+            },
           );
 
           if (response.stopReason === "aborted") {

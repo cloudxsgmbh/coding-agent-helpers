@@ -56,7 +56,6 @@ import {
   Text,
   TUI,
   fuzzyMatch,
-  getEditorKeybindings,
   matchesKey,
   truncateToWidth,
   visibleWidth,
@@ -97,6 +96,10 @@ interface TodoSettings {
   gc: boolean;
   gcDays: number;
 }
+
+type KeybindingMatcher = {
+  matches: (keyData: string, keybindingId: string) => boolean;
+};
 
 const TodoParams = Type.Object({
   action: StringEnum([
@@ -285,6 +288,7 @@ class TodoSelectorComponent extends Container implements Focusable {
   private onCancelCallback: () => void;
   private tui: TUI;
   private theme: Theme;
+  private keybindings: KeybindingMatcher;
   private headerText: Text;
   private hintText: Text;
   private currentSessionId?: string;
@@ -301,6 +305,7 @@ class TodoSelectorComponent extends Container implements Focusable {
   constructor(
     tui: TUI,
     theme: Theme,
+    keybindings: KeybindingMatcher,
     todos: TodoFrontMatter[],
     onSelect: (todo: TodoFrontMatter) => void,
     onCancel: () => void,
@@ -314,6 +319,7 @@ class TodoSelectorComponent extends Container implements Focusable {
     super();
     this.tui = tui;
     this.theme = theme;
+    this.keybindings = keybindings;
     this.currentSessionId = currentSessionId;
     this.allTodos = todos;
     this.filteredTodos = todos;
@@ -449,8 +455,8 @@ class TodoSelectorComponent extends Container implements Focusable {
   }
 
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings();
-    if (kb.matches(keyData, "selectUp")) {
+    const kb = this.keybindings;
+    if (kb.matches(keyData, "tui.select.up")) {
       if (this.filteredTodos.length === 0) return;
       this.selectedIndex =
         this.selectedIndex === 0
@@ -459,7 +465,7 @@ class TodoSelectorComponent extends Container implements Focusable {
       this.updateList();
       return;
     }
-    if (kb.matches(keyData, "selectDown")) {
+    if (kb.matches(keyData, "tui.select.down")) {
       if (this.filteredTodos.length === 0) return;
       this.selectedIndex =
         this.selectedIndex === this.filteredTodos.length - 1
@@ -468,12 +474,12 @@ class TodoSelectorComponent extends Container implements Focusable {
       this.updateList();
       return;
     }
-    if (kb.matches(keyData, "selectConfirm")) {
+    if (kb.matches(keyData, "tui.select.confirm")) {
       const selected = this.filteredTodos[this.selectedIndex];
       if (selected) this.onSelectCallback(selected);
       return;
     }
-    if (kb.matches(keyData, "selectCancel")) {
+    if (kb.matches(keyData, "tui.select.cancel")) {
       this.onCancelCallback();
       return;
     }
@@ -636,15 +642,18 @@ class TodoDetailOverlayComponent {
   private viewHeight = 0;
   private totalLines = 0;
   private onAction: (action: TodoOverlayAction) => void;
+  private keybindings: KeybindingMatcher;
 
   constructor(
     tui: TUI,
     theme: Theme,
+    keybindings: KeybindingMatcher,
     todo: TodoRecord,
     onAction: (action: TodoOverlayAction) => void,
   ) {
     this.tui = tui;
     this.theme = theme;
+    this.keybindings = keybindings;
     this.todo = todo;
     this.onAction = onAction;
     this.markdown = new Markdown(
@@ -661,28 +670,34 @@ class TodoDetailOverlayComponent {
   }
 
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings();
-    if (kb.matches(keyData, "selectCancel")) {
+    const kb = this.keybindings;
+    if (kb.matches(keyData, "tui.select.cancel")) {
       this.onAction("back");
       return;
     }
-    if (kb.matches(keyData, "selectConfirm")) {
+    if (kb.matches(keyData, "tui.select.confirm")) {
       this.onAction("work");
       return;
     }
-    if (kb.matches(keyData, "selectUp")) {
+    if (kb.matches(keyData, "tui.select.up")) {
       this.scrollBy(-1);
       return;
     }
-    if (kb.matches(keyData, "selectDown")) {
+    if (kb.matches(keyData, "tui.select.down")) {
       this.scrollBy(1);
       return;
     }
-    if (kb.matches(keyData, "selectPageUp")) {
+    if (
+      kb.matches(keyData, "tui.select.pageUp") ||
+      matchesKey(keyData, Key.left)
+    ) {
       this.scrollBy(-this.viewHeight || -1);
       return;
     }
-    if (kb.matches(keyData, "selectPageDown")) {
+    if (
+      kb.matches(keyData, "tui.select.pageDown") ||
+      matchesKey(keyData, Key.right)
+    ) {
       this.scrollBy(this.viewHeight || 1);
       return;
     }
@@ -792,7 +807,8 @@ class TodoDetailOverlayComponent {
       this.theme.fg("accent", "enter") +
       this.theme.fg("muted", " work on todo");
     const back = this.theme.fg("dim", "esc back");
-    const pieces = [work, back];
+    const nav = this.theme.fg("dim", "↑/↓: move. ←/→: page.");
+    const pieces = [work, back, nav];
 
     let line = pieces.join(this.theme.fg("muted", " • "));
     if (this.totalLines > this.viewHeight) {
@@ -1420,7 +1436,7 @@ function renderTodoDetail(
 }
 
 function appendExpandHint(theme: Theme, text: string): string {
-  return `${text}\n${theme.fg("dim", `(${keyHint("expandTools", "to expand")})`)}`;
+  return `${text}\n${theme.fg("dim", `(${keyHint("app.tools.expand", "to expand")})`)}`;
 }
 
 async function ensureTodoExists(
@@ -1590,9 +1606,16 @@ async function deleteTodo(
 }
 
 export default function todosExtension(pi: ExtensionAPI) {
-  pi.on("session_start", async (_event, ctx) => {
+  pi.on("session_start", async (event, ctx) => {
     const todosDir = getTodosDir(ctx.cwd);
     await ensureTodosDir(todosDir);
+
+    // session_start covers startup/reload/new/resume/fork.
+    // Run GC only on process startup/reload.
+    if (event.reason !== "startup" && event.reason !== "reload") {
+      return;
+    }
+
     const settings = await readTodoSettings(todosDir);
     await garbageCollectTodos(todosDir, settings);
   });
@@ -1999,21 +2022,6 @@ export default function todosExtension(pi: ExtensionAPI) {
 
   pi.registerCommand("todos", {
     description: "List todos from .pi/todos",
-    getArgumentCompletions: (argumentPrefix: string) => {
-      const todos = listTodosSync(getTodosDir(process.cwd()));
-      if (!todos.length) return null;
-      const matches = filterTodos(todos, argumentPrefix);
-      if (!matches.length) return null;
-      return matches.map((todo) => {
-        const title = todo.title || "(untitled)";
-        const tags = todo.tags.length ? ` • ${todo.tags.join(", ")}` : "";
-        return {
-          value: title,
-          label: `${formatTodoId(todo.id)} ${title}`,
-          description: `${todo.status || "open"}${tags}`,
-        };
-      });
-    },
     handler: async (args, ctx) => {
       const todosDir = getTodosDir(ctx.cwd);
       const todos = await listTodos(todosDir);
@@ -2028,7 +2036,7 @@ export default function todosExtension(pi: ExtensionAPI) {
 
       let nextPrompt: string | null = null;
       let rootTui: TUI | null = null;
-      await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+      await ctx.ui.custom<void>((tui, theme, keybindings, done) => {
         rootTui = tui;
         let selector: TodoSelectorComponent | null = null;
         let actionMenu: TodoActionMenuComponent | null = null;
@@ -2102,10 +2110,11 @@ export default function todosExtension(pi: ExtensionAPI) {
           record: TodoRecord,
         ): Promise<TodoOverlayAction> => {
           const action = await ctx.ui.custom<TodoOverlayAction>(
-            (overlayTui, overlayTheme, _overlayKb, overlayDone) =>
+            (overlayTui, overlayTheme, overlayKeybindings, overlayDone) =>
               new TodoDetailOverlayComponent(
                 overlayTui,
                 overlayTheme,
+                overlayKeybindings,
                 record,
                 overlayDone,
               ),
@@ -2265,6 +2274,7 @@ export default function todosExtension(pi: ExtensionAPI) {
         selector = new TodoSelectorComponent(
           tui,
           theme,
+          keybindings,
           todos,
           (todo) => {
             void handleSelect(todo);
